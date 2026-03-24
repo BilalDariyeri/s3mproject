@@ -151,12 +151,12 @@
 
 <!-- TAB BAR -->
 <div class="tabs">
-    <div class="tab active" onclick="showPage('overview')"><i class="fas fa-chart-pie"></i>Genel Bakış</div>
-    <div class="tab" onclick="showPage('auth')"><i class="fas fa-key"></i>PAP/CHAP Test</div>
-    <div class="tab" onclick="showPage('mab')"><i class="fas fa-fingerprint"></i>MAB Test</div>
-    <div class="tab" onclick="showPage('ratelimit')"><i class="fas fa-gauge-high"></i>Rate Limiting</div>
-    <div class="tab" onclick="showPage('accounting')"><i class="fas fa-receipt"></i>Accounting</div>
-    <div class="tab" onclick="showPage('sessions')"><i class="fas fa-satellite-dish"></i>Aktif Oturumlar</div>
+    <div class="tab active" onclick="showPage('overview', this)"><i class="fas fa-chart-pie"></i>Genel Bakış</div>
+    <div class="tab" onclick="showPage('auth', this)"><i class="fas fa-key"></i>PAP/CHAP Test</div>
+    <div class="tab" onclick="showPage('mab', this)"><i class="fas fa-fingerprint"></i>MAB Test</div>
+    <div class="tab" onclick="showPage('ratelimit', this)"><i class="fas fa-gauge-high"></i>Rate Limiting</div>
+    <div class="tab" onclick="showPage('accounting', this)"><i class="fas fa-receipt"></i>Accounting</div>
+    <div class="tab" onclick="showPage('sessions', this)"><i class="fas fa-satellite-dish"></i>Aktif Oturumlar</div>
 </div>
 
 <!-- ═══════════════════════════ OVERVIEW PAGE ═══════════════════════════ -->
@@ -309,11 +309,11 @@
 
 <script>
 // ─── Tab Navigation ───
-function showPage(name) {
+function showPage(name, el) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById('page-' + name).classList.add('active');
-    event.currentTarget.classList.add('active');
+    if (el) el.classList.add('active');
     // Sayfa açılınca verileri yükle
     if (name === 'ratelimit') loadRateLimits();
     if (name === 'accounting') loadAccounting();
@@ -354,10 +354,10 @@ function toast(msg, color) {
 async function loadOverview() {
     try {
         const [usersRes, sessRes, acctRes, rlRes] = await Promise.all([
-            fetch('/users').then(r => r.json()),
-            fetch('/sessions/active').then(r => r.json()),
-            fetch('/accounting/history').then(r => r.json()),
-            fetch('/rate-limit-all').then(r => r.json()),
+            fetch('/users').then(r => r.json()).catch(() => ({users:[]})),
+            fetch('/sessions/active').then(r => r.json()).catch(() => ({active_sessions:[]})),
+            fetch('/accounting/history').then(r => r.json()).catch(() => ({records:[], count:0})),
+            fetch('/rate-limit-all').then(r => r.json()).catch(() => ({rate_limits:[], limit_threshold:3, block_seconds:30})),
         ]);
 
         // Stats
@@ -588,31 +588,38 @@ async function loadAccounting() {
 
 // ═══ SESSIONS ═══
 async function loadSessions() {
-    const data = await fetch('/sessions/active').then(r => r.json());
-    const sessions = data.active_sessions || [];
-    const div = document.getElementById('sessions-container');
-    document.getElementById('s-sessions').textContent = sessions.length;
+    try {
+        const res = await fetch('/sessions/active');
+        const data = await res.json();
+        const sessions = data.active_sessions || [];
+        const div = document.getElementById('sessions-container');
+        if (!div) return;
+        const statEl = document.getElementById('s-sessions');
+        if (statEl) statEl.textContent = sessions.length;
 
-    if (sessions.length === 0) {
-        div.innerHTML = '<div class="empty"><i class="fas fa-wifi"></i>Aktif oturum yok</div>';
-        return;
-    }
+        if (sessions.length === 0) {
+            div.innerHTML = '<div class="empty"><i class="fas fa-wifi"></i><br>Aktif oturum yok — Accounting sekmesinden <b>Start</b> gönderin veya aşağıdan <b>Simülasyon</b> yapın</div>';
+            return;
+        }
 
-    div.innerHTML = sessions.map(s => `
-        <div class="session-item">
-            <div class="session-left">
-                <div class="session-dot"></div>
-                <div>
-                    <b style="font-size:0.85rem">${s.username}</b>
-                    <div class="mono" style="font-size:0.68rem;color:var(--text-muted)">SID: ${s.session_id}</div>
+        div.innerHTML = sessions.map(s => `
+            <div class="session-item">
+                <div class="session-left">
+                    <div class="session-dot"></div>
+                    <div>
+                        <b style="font-size:0.85rem">${s.username || 'unknown'}</b>
+                        <div class="mono" style="font-size:0.68rem;color:var(--text-muted)">SID: ${s.session_id || '—'}</div>
+                    </div>
+                </div>
+                <div style="text-align:right;font-size:0.72rem;color:var(--text-secondary)">
+                    <div>NAS: ${s.nas_ip || '127.0.0.1'}</div>
+                    <div class="mono" style="color:var(--text-muted)">↓${fmt(s.input_octets)} ↑${fmt(s.output_octets)}</div>
                 </div>
             </div>
-            <div style="text-align:right;font-size:0.72rem;color:var(--text-secondary)">
-                <div>NAS: ${s.nas_ip || '127.0.0.1'}</div>
-                <div class="mono" style="color:var(--text-muted)">↓${fmt(s.input_octets)} ↑${fmt(s.output_octets)}</div>
-            </div>
-        </div>
-    `).join('');
+        `).join('');
+    } catch (e) {
+        console.error('loadSessions error:', e);
+    }
 }
 
 async function simulate(action) {
