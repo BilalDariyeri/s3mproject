@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S3M NAC | Network Access Control Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2234;
+            --border: #2a3550;
+            --text-primary: #f0f4ff;
+            --text-secondary: #8899b8;
+            --text-muted: #556680;
+            --blue: #3b82f6;
+            --purple: #8b5cf6;
+            --emerald: #10b981;
+            --amber: #f59e0b;
+            --rose: #ef4444;
+            --cyan: #06b6d4;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+
+        /* NAV */
+        .nav { background: rgba(17,24,39,0.9); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 0.875rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+        .nav-brand { display: flex; align-items: center; gap: 0.75rem; }
+        .nav-logo { width: 38px; height: 38px; background: linear-gradient(135deg, var(--blue), var(--purple)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; box-shadow: 0 0 20px rgba(59,130,246,0.3); }
+        .nav h1 { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.5px; }
+        .nav h1 span { color: var(--blue); font-weight: 400; }
+        .status-pill { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.875rem; border-radius: 100px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: rgba(16,185,129,0.1); color: var(--emerald); border: 1px solid rgba(16,185,129,0.2); }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--emerald); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,0.5)} 50%{opacity:.7;box-shadow:0 0 0 5px rgba(16,185,129,0)} }
+
+        /* TAB BAR */
+        .tabs { display: flex; gap: 0.25rem; padding: 0.75rem 2rem; background: var(--bg-secondary); border-bottom: 1px solid var(--border); overflow-x: auto; }
+        .tab { padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.2s; color: var(--text-muted); border: 1px solid transparent; white-space: nowrap; }
+        .tab:hover { color: var(--text-secondary); background: var(--bg-card); }
+        .tab.active { color: var(--blue); background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.2); }
+        .tab i { margin-right: 6px; }
+
+        /* PAGE CONTENT */
+        .page { display: none; padding: 1.5rem 2rem; max-width: 1500px; margin: 0 auto; }
+        .page.active { display: block; }
+
+        /* CARDS */
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem; }
+        .card-title { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-secondary); margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+        .card-title i { font-size: 0.85rem; }
+
+        /* GRIDS */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
+        @media(max-width:900px) { .grid-2,.grid-3,.grid-4 { grid-template-columns: 1fr; } }
+
+        /* STAT CARDS */
+        .stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; position: relative; overflow: hidden; }
+        .stat::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+        .stat.s-blue::before { background: linear-gradient(135deg,var(--blue),var(--purple)); }
+        .stat.s-green::before { background: linear-gradient(135deg,var(--emerald),var(--cyan)); }
+        .stat.s-amber::before { background: linear-gradient(135deg,var(--amber),var(--rose)); }
+        .stat.s-purple::before { background: linear-gradient(135deg,var(--purple),#ec4899); }
+        .stat-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); }
+        .stat-val { font-size: 2rem; font-weight: 800; letter-spacing: -1px; margin: 0.25rem 0; }
+        .stat.s-blue .stat-val { color: var(--blue); }
+        .stat.s-green .stat-val { color: var(--emerald); }
+        .stat.s-amber .stat-val { color: var(--amber); }
+        .stat.s-purple .stat-val { color: var(--purple); }
+        .stat-sub { font-size: 0.7rem; color: var(--text-muted); }
+
+        /* FORM ELEMENTS */
+        .input { width:100%; padding:0.75rem 1rem; background:var(--bg-primary); border:1px solid var(--border); border-radius:10px; color:var(--text-primary); font-family:'Inter',sans-serif; font-size:0.8rem; outline:none; transition:all 0.2s; margin-bottom:0.75rem; }
+        .input:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(59,130,246,0.12); }
+        .input::placeholder { color:var(--text-muted); }
+        .btn { padding:0.7rem 1.25rem; border:none; border-radius:10px; font-family:'Inter',sans-serif; font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.2s; }
+        .btn:hover { transform:translateY(-1px); }
+        .btn-blue { background:linear-gradient(135deg,var(--blue),var(--purple)); color:white; box-shadow:0 4px 15px rgba(59,130,246,0.3); }
+        .btn-green { background:linear-gradient(135deg,var(--emerald),var(--cyan)); color:white; box-shadow:0 4px 15px rgba(16,185,129,0.3); }
+        .btn-amber { background:linear-gradient(135deg,var(--amber),#ef4444); color:white; box-shadow:0 4px 15px rgba(245,158,11,0.3); }
+        .btn-rose { background:rgba(239,68,68,0.12); color:var(--rose); border:1px solid rgba(239,68,68,0.2); }
+        .btn-sm { padding:0.5rem 0.875rem; font-size:0.7rem; }
+        .btn-group { display:flex; gap:0.5rem; flex-wrap:wrap; }
+
+        /* RESULT BOX */
+        .result-box { padding:1rem; border-radius:10px; margin-top:0.75rem; font-size:0.82rem; font-weight:600; display:none; animation: fadeIn 0.3s; }
+        .result-box.accept { background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); color:var(--emerald); }
+        .result-box.reject { background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); color:var(--rose); }
+        .result-box .result-icon { font-size:1.5rem; margin-bottom:0.5rem; }
+        .result-box .result-detail { font-size:0.72rem; font-weight:400; color:var(--text-secondary); margin-top:0.25rem; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+        /* TABLE */
+        table { width:100%; border-collapse:collapse; }
+        th { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-muted); padding:0.7rem 0.75rem; text-align:left; border-bottom:1px solid var(--border); }
+        td { padding:0.7rem 0.75rem; font-size:0.8rem; border-bottom:1px solid rgba(42,53,80,0.4); }
+        tbody tr:hover { background:rgba(59,130,246,0.03); }
+
+        /* BADGES */
+        .badge { display:inline-flex; align-items:center; gap:4px; padding:0.2rem 0.6rem; border-radius:100px; font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+        .badge-green { background:rgba(16,185,129,0.1); color:var(--emerald); border:1px solid rgba(16,185,129,0.2); }
+        .badge-red { background:rgba(239,68,68,0.08); color:var(--rose); border:1px solid rgba(239,68,68,0.15); }
+        .badge-blue { background:rgba(59,130,246,0.08); color:var(--blue); border:1px solid rgba(59,130,246,0.15); }
+        .badge-amber { background:rgba(245,158,11,0.08); color:var(--amber); border:1px solid rgba(245,158,11,0.15); }
+        .badge-purple { background:rgba(139,92,246,0.08); color:var(--purple); border:1px solid rgba(139,92,246,0.15); }
+
+        /* SESSION ITEMS */
+        .session-item { display:flex; align-items:center; justify-content:space-between; padding:0.875rem 1rem; background:rgba(59,130,246,0.03); border:1px solid rgba(59,130,246,0.1); border-radius:10px; margin-bottom:0.5rem; animation: slideIn 0.4s ease; }
+        @keyframes slideIn { from{opacity:0;transform:translateX(15px)} to{opacity:1;transform:translateX(0)} }
+        .session-left { display:flex; align-items:center; gap:0.75rem; }
+        .session-dot { width:8px; height:8px; border-radius:50%; background:var(--emerald); box-shadow:0 0 10px rgba(16,185,129,0.5); animation:pulse 2s infinite; }
+
+        /* LOG */
+        .log-item { display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0; border-bottom:1px solid rgba(42,53,80,0.25); font-size:0.75rem; animation: fadeIn 0.3s; }
+        .log-icon { width:22px; height:22px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:0.6rem; flex-shrink:0; }
+        .log-icon.ok { background:rgba(16,185,129,0.1); color:var(--emerald); }
+        .log-icon.fail { background:rgba(239,68,68,0.08); color:var(--rose); }
+        .log-icon.warn { background:rgba(245,158,11,0.08); color:var(--amber); }
+        .log-icon.info { background:rgba(59,130,246,0.08); color:var(--blue); }
+        .log-text { flex:1; color:var(--text-secondary); }
+        .log-text b { color:var(--text-primary); font-weight:600; }
+        .log-time { color:var(--text-muted); font-size:0.65rem; font-family:monospace; }
+
+        /* RATE LIMIT BAR */
+        .rl-bar { height:8px; background:var(--bg-primary); border-radius:4px; overflow:hidden; margin:0.5rem 0; }
+        .rl-fill { height:100%; border-radius:4px; transition:width 0.5s; }
+
+        /* MISC */
+        .mono { font-family:'SF Mono','Monaco','Inconsolata',monospace; }
+        .empty { text-align:center; padding:3rem; color:var(--text-muted); }
+        .empty i { font-size:2.5rem; opacity:0.15; margin-bottom:0.75rem; display:block; }
+        .toast { position:fixed; bottom:1.5rem; right:1.5rem; z-index:1000; padding:0.75rem 1.25rem; border-radius:10px; background:var(--bg-card); font-size:0.8rem; font-weight:600; box-shadow:0 10px 40px rgba(0,0,0,0.5); animation:slideIn 0.3s; }
+        select.input { cursor:pointer; }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-brand">
+        <div class="nav-logo"><i class="fas fa-shield-halved"></i></div>
+        <h1>S3M <span>NAC System</span></h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem">
+        <div class="status-pill"><div class="dot"></div>Sistem Aktif</div>
+        <span id="clock" class="mono" style="color:var(--text-muted);font-size:0.7rem"></span>
+    </div>
+</nav>
+
+<!-- TAB BAR -->
+<div class="tabs">
+    <div class="tab active" onclick="showPage('overview')"><i class="fas fa-chart-pie"></i>Genel Bakış</div>
+    <div class="tab" onclick="showPage('auth')"><i class="fas fa-key"></i>PAP/CHAP Test</div>
+    <div class="tab" onclick="showPage('mab')"><i class="fas fa-fingerprint"></i>MAB Test</div>
+    <div class="tab" onclick="showPage('ratelimit')"><i class="fas fa-gauge-high"></i>Rate Limiting</div>
+    <div class="tab" onclick="showPage('accounting')"><i class="fas fa-receipt"></i>Accounting</div>
+    <div class="tab" onclick="showPage('sessions')"><i class="fas fa-satellite-dish"></i>Aktif Oturumlar</div>
+</div>
+
+<!-- ═══════════════════════════ OVERVIEW PAGE ═══════════════════════════ -->
+<div class="page active" id="page-overview">
+    <div class="grid-4">
+        <div class="stat s-blue"><div class="stat-label">Toplam Kullanıcı</div><div class="stat-val" id="s-users">—</div><div class="stat-sub">PostgreSQL</div></div>
+        <div class="stat s-green"><div class="stat-label">Aktif Oturum</div><div class="stat-val" id="s-sessions">—</div><div class="stat-sub">Redis cache</div></div>
+        <div class="stat s-amber"><div class="stat-label">Accounting Kaydı</div><div class="stat-val" id="s-acct">—</div><div class="stat-sub">radacct tablosu</div></div>
+        <div class="stat s-purple"><div class="stat-label">Rate-Limited</div><div class="stat-val" id="s-blocked">0</div><div class="stat-sub">Bloklu kullanıcı</div></div>
+    </div>
+
+    <div class="grid-2" style="margin-top:1.25rem">
+        <!-- USERS TABLE -->
+        <div class="card">
+            <div class="card-title"><i class="fas fa-users" style="color:var(--blue)"></i>Kullanıcılar & VLAN</div>
+            <table>
+                <thead><tr><th>Kullanıcı</th><th>MAC</th><th>Grup</th><th>VLAN</th><th>Durum</th></tr></thead>
+                <tbody id="users-table"><tr><td colspan="5" class="empty">Yükleniyor...</td></tr></tbody>
+            </table>
+        </div>
+        <!-- EVENT LOG -->
+        <div class="card">
+            <div class="card-title"><i class="fas fa-scroll" style="color:var(--amber)"></i>Olay Geçmişi</div>
+            <div id="event-log"><div class="empty"><i class="fas fa-hourglass"></i>Henüz olay yok — test panellerini kullanarak başlayın</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════ PAP/CHAP AUTH PAGE ═══════════════════════════ -->
+<div class="page" id="page-auth">
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-title"><i class="fas fa-key" style="color:var(--blue)"></i>PAP / CHAP Kimlik Doğrulama Testi</div>
+            <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">Kullanıcı adı ve şifre ile giriş denemesi yapın. Bcrypt hash doğrulaması ve Redis rate-limiting mekanizmasını test edin.</p>
+            <input class="input" id="pap-user" placeholder="Kullanıcı adı (ör: testuser)">
+            <input class="input" id="pap-pass" type="password" placeholder="Şifre (ör: testing123)">
+            <div class="btn-group">
+                <button class="btn btn-blue" onclick="testPAP()"><i class="fas fa-paper-plane" style="margin-right:6px"></i>Doğrula</button>
+                <button class="btn btn-rose btn-sm" onclick="testPAPFail()"><i class="fas fa-bug" style="margin-right:4px"></i>Yanlış Şifre Gönder (×3)</button>
+            </div>
+            <div class="result-box" id="pap-result"></div>
+        </div>
+        <div class="card">
+            <div class="card-title"><i class="fas fa-info-circle" style="color:var(--cyan)"></i>Nasıl Çalışır?</div>
+            <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.8">
+                <p><b style="color:var(--text-primary)">1.</b> Kullanıcı adı + şifre → FastAPI <code style="color:var(--blue)">/auth</code> endpoint'ine gönderilir</p>
+                <p><b style="color:var(--text-primary)">2.</b> PostgreSQL <code style="color:var(--blue)">users</code> tablosundan bcrypt hash çekilir</p>
+                <p><b style="color:var(--text-primary)">3.</b> <code style="color:var(--emerald)">bcrypt.checkpw()</code> ile şifre doğrulanır</p>
+                <p><b style="color:var(--text-primary)">4.</b> Başarısız → Redis <code style="color:var(--rose)">fail:{username}</code> sayacı artırılır</p>
+                <p><b style="color:var(--text-primary)">5.</b> 3 hata → <b style="color:var(--rose)">30 saniye blok</b> (rate-limiting)</p>
+            </div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+            <div class="card-title"><i class="fas fa-terminal" style="color:var(--text-muted)"></i>CLI Eşdeğeri</div>
+            <code class="mono" style="font-size:0.72rem;color:var(--text-muted);display:block;background:var(--bg-primary);padding:0.75rem;border-radius:8px;word-break:break-all">docker exec nac_freeradius radtest testuser testing123 127.0.0.1 0 testing123</code>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════ MAB PAGE ═══════════════════════════ -->
+<div class="page" id="page-mab">
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-title"><i class="fas fa-fingerprint" style="color:var(--purple)"></i>MAC Authentication Bypass (MAB) Testi</div>
+            <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">802.1X desteklemeyen cihazlar (yazıcı, IP telefon vb.) için MAC adresi tabanlı doğrulama testi.</p>
+            <input class="input" id="mab-mac" placeholder="MAC adresi (ör: AA:BB:CC:DD:EE:FF)">
+            <div class="btn-group">
+                <button class="btn btn-blue" onclick="testMAB()"><i class="fas fa-paper-plane" style="margin-right:6px"></i>MAC Doğrula</button>
+                <button class="btn btn-rose btn-sm" onclick="testMABUnknown()"><i class="fas fa-question" style="margin-right:4px"></i>Bilinmeyen MAC Gönder</button>
+            </div>
+            <div class="result-box" id="mab-result"></div>
+
+            <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0">
+            <div class="card-title" style="font-size:0.62rem"><i class="fas fa-database" style="color:var(--text-muted)"></i>Kayıtlı MAC Adresleri</div>
+            <div id="mab-macs" style="font-size:0.78rem;color:var(--text-secondary)">Yükleniyor...</div>
+        </div>
+        <div class="card">
+            <div class="card-title"><i class="fas fa-info-circle" style="color:var(--cyan)"></i>Nasıl Çalışır?</div>
+            <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.8">
+                <p><b style="color:var(--text-primary)">1.</b> Cihaz ağa bağlanır — şifre gönderemez</p>
+                <p><b style="color:var(--text-primary)">2.</b> Switch, cihazın <code style="color:var(--purple)">Calling-Station-Id</code> (MAC) adresini RADIUS'a gönderir</p>
+                <p><b style="color:var(--text-primary)">3.</b> FreeRADIUS authorize bölümünde: <code style="color:var(--purple)">!User-Password && Calling-Station-Id</code> → MAB akışı</p>
+                <p><b style="color:var(--text-primary)">4.</b> FastAPI <code style="color:var(--blue)">/auth</code>: <code>users.mac_address</code> sorgulanır</p>
+                <p><b style="color:var(--text-primary)">5.</b> Kayıtlı → <b style="color:var(--emerald)">Accept</b> / Kayıtsız → <b style="color:var(--rose)">Reject</b></p>
+            </div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+            <div class="card-title"><i class="fas fa-terminal" style="color:var(--text-muted)"></i>CLI Eşdeğeri</div>
+            <code class="mono" style="font-size:0.7rem;color:var(--text-muted);display:block;background:var(--bg-primary);padding:0.75rem;border-radius:8px;word-break:break-all">echo "User-Name=AA:BB:CC:DD:EE:FF,Calling-Station-Id=AA:BB:CC:DD:EE:FF" | docker exec -i nac_freeradius radclient 127.0.0.1 auth testing123</code>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════ RATE LIMIT PAGE ═══════════════════════════ -->
+<div class="page" id="page-ratelimit">
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-title"><i class="fas fa-gauge-high" style="color:var(--amber)"></i>Rate Limiting Durumu</div>
+            <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">Redis'teki başarısız giriş sayaçları. Limit: <b style="color:var(--amber)" id="rl-limit">3</b> deneme / <b style="color:var(--amber)" id="rl-block">30</b>s blok.</p>
+            <div id="rl-entries"><div class="empty"><i class="fas fa-shield-check"></i>Bloklu kullanıcı yok — PAP testinden yanlış şifre göndererek rate-limiting'i tetikleyin</div></div>
+            <button class="btn btn-amber btn-sm" onclick="loadRateLimits()" style="margin-top:0.75rem"><i class="fas fa-rotate" style="margin-right:4px"></i>Yenile</button>
+        </div>
+        <div class="card">
+            <div class="card-title"><i class="fas fa-flask" style="color:var(--rose)"></i>Rate Limit Test Aracı</div>
+            <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">Bir kullanıcıya arka arkaya yanlış şifre göndererek rate-limiting mekanizmasını tetikleyin.</p>
+            <input class="input" id="rl-user" placeholder="Kullanıcı adı" value="testuser">
+            <button class="btn btn-rose" onclick="triggerRateLimit()"><i class="fas fa-bolt" style="margin-right:6px"></i>3× Yanlış Şifre Gönder (Rate Limit Tetikle)</button>
+            <div class="result-box" id="rl-result"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════ ACCOUNTING PAGE ═══════════════════════════ -->
+<div class="page" id="page-accounting">
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-title"><i class="fas fa-play-circle" style="color:var(--emerald)"></i>Accounting Simülatörü</div>
+            <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">Start → Interim-Update → Stop akışını simüle edin. Her paket PostgreSQL <code>radacct</code> tablosuna yazılır + Redis cache güncellenir.</p>
+            <input class="input" id="acct-user" placeholder="Kullanıcı adı" value="testuser">
+            <input class="input mono" id="acct-sid" placeholder="Session ID (otomatik oluşturulur)">
+            <div class="btn-group">
+                <button class="btn btn-green" onclick="acctTest('Start')"><i class="fas fa-play" style="margin-right:4px"></i>Start</button>
+                <button class="btn btn-blue" onclick="acctTest('Interim-Update')"><i class="fas fa-arrows-rotate" style="margin-right:4px"></i>Interim</button>
+                <button class="btn btn-rose" onclick="acctTest('Stop')"><i class="fas fa-stop" style="margin-right:4px"></i>Stop</button>
+            </div>
+            <div class="result-box" id="acct-result"></div>
+        </div>
+        <div class="card">
+            <div class="card-title"><i class="fas fa-database" style="color:var(--blue)"></i>Accounting Kayıtları (radacct)</div>
+            <div id="acct-records"><div class="empty"><i class="fas fa-table"></i>Kayıt yok — sol panelden accounting testi yapın</div></div>
+            <button class="btn btn-blue btn-sm" onclick="loadAccounting()" style="margin-top:0.75rem"><i class="fas fa-rotate" style="margin-right:4px"></i>Yenile</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════ SESSIONS PAGE ═══════════════════════════ -->
+<div class="page" id="page-sessions">
+    <div class="card">
+        <div class="card-title"><i class="fas fa-satellite-dish" style="color:var(--emerald)"></i>Aktif Oturumlar (Redis Cache)</div>
+        <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">Redis <code>session:*</code> anahtarlarından okunan aktif oturumlar. Her 5 saniyede otomatik yenilenir.</p>
+        <div id="sessions-container"><div class="empty"><i class="fas fa-wifi"></i>Aktif oturum yok — Accounting panelinden Start gönderin veya aşağıdan simüle edin</div></div>
+    </div>
+    <div class="card" style="margin-top:0">
+        <div class="card-title"><i class="fas fa-terminal" style="color:var(--purple)"></i>Hızlı Simülasyon</div>
+        <div style="display:flex;gap:0.75rem;align-items:end">
+            <div style="flex:1"><label style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Kullanıcı</label><input class="input" id="sim-user" placeholder="Kullanıcı adı" style="margin-bottom:0"></div>
+            <button class="btn btn-green" onclick="simulate('connect')"><i class="fas fa-plug" style="margin-right:4px"></i>Bağlan</button>
+            <button class="btn btn-rose" onclick="simulate('disconnect')"><i class="fas fa-plug-circle-xmark" style="margin-right:4px"></i>Kopar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ─── Tab Navigation ───
+function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+    // Sayfa açılınca verileri yükle
+    if (name === 'ratelimit') loadRateLimits();
+    if (name === 'accounting') loadAccounting();
+    if (name === 'sessions') loadSessions();
+    if (name === 'mab') loadMACs();
+}
+
+// ─── Clock ───
+setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('tr-TR'); }, 1000);
+
+// ─── Event Log ───
+const events = [];
+function addLog(type, msg) {
+    const iconMap = {ok:'fa-check', fail:'fa-xmark', warn:'fa-exclamation', info:'fa-info'};
+    const logDiv = document.getElementById('event-log');
+    if (events.length === 0) logDiv.innerHTML = '';
+    const time = new Date().toLocaleTimeString('tr-TR');
+    const el = document.createElement('div');
+    el.className = 'log-item';
+    el.innerHTML = `<div class="log-icon ${type}"><i class="fas ${iconMap[type]}"></i></div><div class="log-text">${msg}</div><div class="log-time">${time}</div>`;
+    logDiv.insertBefore(el, logDiv.firstChild);
+    events.push({type, msg, time});
+    while (logDiv.children.length > 20) logDiv.removeChild(logDiv.lastChild);
+}
+
+// ─── Toast ───
+function toast(msg, color) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.style.borderLeft = `3px solid ${color}`;
+    t.style.color = color;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+// ═══ LOAD OVERVIEW DATA ═══
+async function loadOverview() {
+    try {
+        const [usersRes, sessRes, acctRes, rlRes] = await Promise.all([
+            fetch('/users').then(r => r.json()),
+            fetch('/sessions/active').then(r => r.json()),
+            fetch('/accounting/history').then(r => r.json()),
+            fetch('/rate-limit-all').then(r => r.json()),
+        ]);
+
+        // Stats
+        const users = usersRes.users || [];
+        document.getElementById('s-users').textContent = users.length;
+        document.getElementById('s-sessions').textContent = (sessRes.active_sessions || []).length;
+        document.getElementById('s-acct').textContent = acctRes.count || 0;
+        document.getElementById('s-blocked').textContent = (rlRes.rate_limits || []).filter(r => r.blocked).length;
+
+        // Users table
+        const tbody = document.getElementById('users-table');
+        tbody.innerHTML = '';
+        const vlanMap = {admin:'10', employee:'20', guest:'30'};
+        const badgeMap = {admin:'badge-blue', employee:'badge-green', guest:'badge-amber'};
+        users.forEach(u => {
+            const g = u.group || u.role || 'guest';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${u.username}</b></td>
+                <td><span class="mono" style="font-size:0.72rem;color:var(--text-muted)">${u.mac_address || '—'}</span></td>
+                <td><span class="badge ${badgeMap[g] || 'badge-amber'}">${g}</span></td>
+                <td><span class="mono" style="font-size:0.75rem">VLAN ${vlanMap[g] || '30'}</span></td>
+                <td><span class="badge ${u.is_active ? 'badge-green' : 'badge-red'}">${u.is_active ? 'Aktif' : 'Pasif'}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) { console.error(e); }
+}
+
+// ═══ PAP AUTH TEST ═══
+async function testPAP() {
+    const user = document.getElementById('pap-user').value.trim();
+    const pass = document.getElementById('pap-pass').value;
+    if (!user || !pass) { toast('Kullanıcı adı ve şifre girin!', 'var(--amber)'); return; }
+
+    const res = await fetch('/dashboard/auth-test', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({type:'pap', username:user, password:pass})
+    }).then(r => r.json());
+
+    showResult('pap-result', res);
+    addLog(res.result === 'ACCEPT' ? 'ok' : 'fail', `PAP: <b>${user}</b> → ${res.result} (${res.reason})`);
+    loadOverview();
+}
+
+async function testPAPFail() {
+    const user = document.getElementById('pap-user').value.trim() || 'testuser';
+    const box = document.getElementById('pap-result');
+
+    for (let i = 1; i <= 3; i++) {
+        const res = await fetch('/dashboard/auth-test', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({type:'pap', username:user, password:'wrongpass_' + i})
+        }).then(r => r.json());
+
+        addLog('fail', `PAP: <b>${user}</b> yanlış şifre #${i} → ${res.reason}`);
+        await new Promise(r => setTimeout(r, 300));
+    }
+
+    // 4. deneme — rate limited olmalı
+    const res = await fetch('/dashboard/auth-test', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({type:'pap', username:user, password:'blocked_attempt'})
+    }).then(r => r.json());
+
+    showResult('pap-result', res);
+    addLog('warn', `PAP: <b>${user}</b> → <b style="color:var(--rose)">${res.reason}</b>`);
+    toast(`${user} rate-limited! 🔒`, 'var(--rose)');
+    loadOverview();
+}
+
+// ═══ MAB TEST ═══
+async function testMAB() {
+    const mac = document.getElementById('mab-mac').value.trim();
+    if (!mac) { toast('MAC adresi girin!', 'var(--amber)'); return; }
+
+    const res = await fetch('/dashboard/auth-test', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({type:'mab', mac:mac})
+    }).then(r => r.json());
+
+    showResult('mab-result', res);
+    addLog(res.result === 'ACCEPT' ? 'ok' : 'fail', `MAB: <b>${mac}</b> → ${res.result} (${res.reason})`);
+    loadOverview();
+}
+
+async function testMABUnknown() {
+    document.getElementById('mab-mac').value = 'FF:FF:FF:FF:FF:FF';
+    await testMAB();
+}
+
+async function loadMACs() {
+    const data = await fetch('/users').then(r => r.json());
+    const div = document.getElementById('mab-macs');
+    const users = (data.users || []).filter(u => u.mac_address);
+    div.innerHTML = users.map(u => `
+        <div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid rgba(42,53,80,0.3)">
+            <span class="mono" style="color:var(--purple)">${u.mac_address}</span>
+            <span style="color:var(--text-muted)">→ ${u.username} (${u.group || u.role})</span>
+        </div>
+    `).join('');
+}
+
+// ═══ RATE LIMITING ═══
+async function loadRateLimits() {
+    const data = await fetch('/rate-limit-all').then(r => r.json());
+    const div = document.getElementById('rl-entries');
+    const entries = data.rate_limits || [];
+
+    document.getElementById('rl-limit').textContent = data.limit_threshold;
+    document.getElementById('rl-block').textContent = data.block_seconds;
+
+    if (entries.length === 0) {
+        div.innerHTML = '<div class="empty"><i class="fas fa-shield-check"></i>Bloklu kullanıcı yok</div>';
+        return;
+    }
+
+    div.innerHTML = entries.map(e => {
+        const pct = Math.min((e.fail_count / data.limit_threshold) * 100, 100);
+        const color = e.blocked ? 'var(--rose)' : 'var(--amber)';
+        return `
+            <div style="padding:0.75rem;background:var(--bg-primary);border-radius:8px;margin-bottom:0.5rem;border:1px solid ${e.blocked ? 'rgba(239,68,68,0.2)' : 'var(--border)'}">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <b style="font-size:0.85rem">${e.username}</b>
+                    <span class="badge ${e.blocked ? 'badge-red' : 'badge-amber'}">
+                        ${e.blocked ? '🔒 BLOCKED' : `${e.fail_count}/${data.limit_threshold}`}
+                    </span>
+                </div>
+                <div class="rl-bar"><div class="rl-fill" style="width:${pct}%;background:${color}"></div></div>
+                <div style="font-size:0.68rem;color:var(--text-muted)">
+                    Başarısız: ${e.fail_count} / ${data.limit_threshold} | 
+                    ${e.blocked ? `Kalan süre: <b style="color:var(--rose)">${e.ttl_seconds}s</b>` : 'Aktif değil'}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function triggerRateLimit() {
+    const user = document.getElementById('rl-user').value.trim() || 'testuser';
+    for (let i = 1; i <= 3; i++) {
+        await fetch('/dashboard/auth-test', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({type:'pap', username:user, password:'wrong_' + i})
+        });
+        addLog('fail', `Rate-limit test: <b>${user}</b> hata #${i}`);
+        await new Promise(r => setTimeout(r, 200));
+    }
+
+    const res = await fetch('/dashboard/auth-test', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({type:'pap', username:user, password:'final_blocked'})
+    }).then(r => r.json());
+
+    const box = document.getElementById('rl-result');
+    box.style.display = 'block';
+    box.className = 'result-box reject';
+    box.innerHTML = `<div class="result-icon">🔒</div><b>${user} → RATE LIMITED</b><div class="result-detail">${res.reason}</div>`;
+    addLog('warn', `Rate-limit: <b>${user}</b> <b style="color:var(--rose)">BLOCKED</b>`);
+    toast(`${user} bloklandı!`, 'var(--rose)');
+    loadRateLimits();
+    loadOverview();
+}
+
+// ═══ ACCOUNTING ═══
+let currentAcctSid = '';
+
+async function acctTest(action) {
+    const user = document.getElementById('acct-user').value.trim() || 'testuser';
+    let sid = document.getElementById('acct-sid').value.trim();
+
+    if (action === 'Start') {
+        sid = 'DASH_' + Date.now();
+        document.getElementById('acct-sid').value = sid;
+    }
+
+    if (!sid) { toast('Önce Start gönderin!', 'var(--amber)'); return; }
+    currentAcctSid = sid;
+
+    const body = {username:user, action:action, session_id:sid};
+    if (action === 'Interim-Update') { body.input_octets=5120; body.output_octets=3072; body.session_time=120; }
+    if (action === 'Stop') { body.input_octets=10240; body.output_octets=8192; body.session_time=300; }
+
+    const res = await fetch('/dashboard/accounting-test', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+    }).then(r => r.json());
+
+    const box = document.getElementById('acct-result');
+    box.style.display = 'block';
+    box.className = 'result-box accept';
+    const icons = {Start:'▶️', 'Interim-Update':'🔄', Stop:'⏹️'};
+    box.innerHTML = `<div class="result-icon">${icons[action]}</div><b>Accounting-${action}</b><div class="result-detail">${res.message}</div>`;
+
+    addLog('info', `Accounting: <b>${user}</b> → ${action} (SID: ${sid.substring(0,12)}...)`);
+    loadAccounting();
+    loadSessions();
+    loadOverview();
+}
+
+async function loadAccounting() {
+    const data = await fetch('/accounting/history').then(r => r.json());
+    const div = document.getElementById('acct-records');
+    const recs = data.records || [];
+
+    if (recs.length === 0) {
+        div.innerHTML = '<div class="empty"><i class="fas fa-table"></i>Kayıt yok</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr><th>Session</th><th>User</th><th>NAS</th><th>Süre</th><th>↓ In</th><th>↑ Out</th><th>Durum</th></tr></thead><tbody>';
+    recs.forEach(r => {
+        const status = r.acctstoptime ? 'Closed' : 'Active';
+        const badge = r.acctstoptime ? 'badge-red' : 'badge-green';
+        html += `<tr>
+            <td><span class="mono" style="font-size:0.7rem">${(r.acctsessionid||'').substring(0,16)}</span></td>
+            <td><b>${r.username}</b></td>
+            <td class="mono" style="font-size:0.72rem;color:var(--text-muted)">${r.nas_ip || '—'}</td>
+            <td>${r.acctsessiontime || 0}s</td>
+            <td class="mono" style="font-size:0.72rem">${fmt(r.acctinputoctets)}</td>
+            <td class="mono" style="font-size:0.72rem">${fmt(r.acctoutputoctets)}</td>
+            <td><span class="badge ${badge}">${status}</span></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    div.innerHTML = html;
+}
+
+// ═══ SESSIONS ═══
+async function loadSessions() {
+    const data = await fetch('/sessions/active').then(r => r.json());
+    const sessions = data.active_sessions || [];
+    const div = document.getElementById('sessions-container');
+    document.getElementById('s-sessions').textContent = sessions.length;
+
+    if (sessions.length === 0) {
+        div.innerHTML = '<div class="empty"><i class="fas fa-wifi"></i>Aktif oturum yok</div>';
+        return;
+    }
+
+    div.innerHTML = sessions.map(s => `
+        <div class="session-item">
+            <div class="session-left">
+                <div class="session-dot"></div>
+                <div>
+                    <b style="font-size:0.85rem">${s.username}</b>
+                    <div class="mono" style="font-size:0.68rem;color:var(--text-muted)">SID: ${s.session_id}</div>
+                </div>
+            </div>
+            <div style="text-align:right;font-size:0.72rem;color:var(--text-secondary)">
+                <div>NAS: ${s.nas_ip || '127.0.0.1'}</div>
+                <div class="mono" style="color:var(--text-muted)">↓${fmt(s.input_octets)} ↑${fmt(s.output_octets)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function simulate(action) {
+    const user = document.getElementById('sim-user').value.trim();
+    if (!user) { toast('Kullanıcı adı girin!', 'var(--amber)'); return; }
+    await fetch('/simulate/' + action, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username: user})
+    });
+    addLog(action === 'connect' ? 'ok' : 'info', `Simülasyon: <b>${user}</b> ${action === 'connect' ? 'bağlandı ✓' : 'koparıldı'}`);
+    toast(action === 'connect' ? `${user} bağlandı` : `${user} koparıldı`, action === 'connect' ? 'var(--emerald)' : 'var(--blue)');
+    setTimeout(() => { loadSessions(); loadOverview(); }, 500);
+}
+
+// ═══ RESULT BOX ═══
+function showResult(id, res) {
+    const box = document.getElementById(id);
+    box.style.display = 'block';
+    const isAccept = res.result === 'ACCEPT';
+    box.className = `result-box ${isAccept ? 'accept' : 'reject'}`;
+    let extra = '';
+    if (res.rate_limit) extra = `<div class="result-detail">Başarısız deneme: ${res.rate_limit.count}/${res.rate_limit.limit}${res.rate_limit.ttl ? ' | Blok süresi: '+res.rate_limit.ttl+'s' : ''}</div>`;
+    if (res.role) extra += `<div class="result-detail">Rol: ${res.role}</div>`;
+    box.innerHTML = `<div class="result-icon">${isAccept ? '✅' : '❌'}</div><b>${res.result}</b> — ${res.reason}${extra}`;
+}
+
+// ═══ UTILS ═══
+function fmt(bytes) {
+    if (!bytes || bytes == 0) return '0B';
+    const k = 1024, s = ['B','KB','MB','GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + s[i];
+}
+
+// ═══ INIT ═══
+loadOverview();
+setInterval(loadSessions, 5000);
+setInterval(loadOverview, 10000);
+</script>
+</body>
+</html>
