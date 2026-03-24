@@ -1,0 +1,28 @@
+# Environment & Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+radius.log
+
+# OS
+.DS_Store
+Thumbs.db
+*.PNG
+*.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker volumes (managed by Docker)
+pg_data/
