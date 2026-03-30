@@ -398,6 +398,53 @@ async def accounting(request: Request):
 
 
 # ══════════════════════════════════════════════
+#  POST /users — Yeni Kullanıcı Ekleme
+# ══════════════════════════════════════════════
+@app.post("/users")
+async def create_user(request: Request):
+    """
+    Dashboard üzerinden yeni kullanıcı (admin, employee, guest) ekler.
+    Kullanıcı şifresi PostgreSQL'in pgcrypto eklentisi ile bcrypt() kullanılarak hashlenir.
+    """
+    data = await request.json()
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+    role = data.get("role", "guest").strip()
+    mac_address = (data.get("mac_address") or "").strip()
+
+    if not username or not password:
+        return JSONResponse({"status": "error", "message": "Kullanıcı adı ve şifre zorunludur."}, status_code=400)
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute(
+            """INSERT INTO users (username, password, mac_address, role, is_active)
+               VALUES (%s, crypt(%s, gen_salt('bf')), %s, %s, TRUE)""",
+            (username, password, mac_address, role)
+        )
+        cur.execute(
+            """INSERT INTO radusergroup (username, groupname, priority)
+               VALUES (%s, %s, 1)""",
+            (username, role)
+        )
+        cur.execute(
+            """INSERT INTO radcheck (username, attribute, op, value)
+               VALUES (%s, 'Cleartext-Password', ':=', %s)""",
+            (username, password)
+        )
+        conn.commit()
+        return {"status": "success", "message": f"Kullanıcı {username} başarıyla oluşturuldu"}
+    except Exception as e:
+        conn.rollback()
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ══════════════════════════════════════════════
 #  GET /users — Kullanıcı Listesi
 # ══════════════════════════════════════════════
 @app.get("/users")

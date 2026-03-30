@@ -1,3 +1,5 @@
+# Network Access Control (NAC) - Video Sunum ve Kod Rehberi
+
 <div style="text-align: center; padding: 80px 40px;">
 
 <h1 style="font-size: 32px; font-weight: bold; margin-bottom: 10px;">Staj Değerlendirme Ödevi</h1>
@@ -102,18 +104,6 @@ FreeRADIUS'un `sql` modülü doğrudan veritabanı sorgusu yapabilir; ancak `rlm
 
 ### 3.1 Docker Compose Yapılandırması
 
-<<<<<<< HEAD
-Tüm servisler tek bir docker-compose.yml dosyasında tanımlanmıştır. Servisler arası bağımlılıklar depends_on ve healthcheck mekanizmalarıyla yönetilir:
-
-| Servis | Healthcheck | Bağımlılık |
-|--------|-------------|-----------|
-| PostgreSQL | pg_isready komutu | — |
-| Redis | redis-cli ping | — |
-| FastAPI | HTTP GET /health | PostgreSQL ✓ Redis ✓ |
-| FreeRADIUS | radtest komutu | FastAPI ✓ PostgreSQL ✓ Redis ✓ |
-
-Bu yapıda FreeRADIUS en son ayağa kalkar çünkü hem API'nin hem veritabanının hazır olmasını bekler. Environment variable'lar .env dosyasında tutulur ve bu dosya .gitignore ile versiyon kontrolünden çıkarılmıştır. Hassas bilgilerin paylaşılmaması için .env.example dosyası şablon olarak oluşturulmuştur.
-=======
 Tüm servisler tek bir `docker-compose.yml` dosyasında tanımlanmıştır. Servisler arası bağımlılıklar `depends_on` ve `healthcheck` mekanizmalarıyla yönetilir:
 
 | Servis | Healthcheck Yöntemi | Bağımlılık |
@@ -123,8 +113,7 @@ Tüm servisler tek bir `docker-compose.yml` dosyasında tanımlanmıştır. Serv
 | FastAPI | HTTP GET `/health` | PostgreSQL ✓ Redis ✓ |
 | FreeRADIUS | `radtest` komutu | FastAPI ✓ PostgreSQL ✓ Redis ✓ |
 
-Bu yapıda FreeRADIUS en son ayağa kalkar çünkü hem API'nin hem veritabanının hazır olmasını bekler. Environment variable'lar `.env` dosyasında tutulur ve bu dosya `.gitignore` ile versiyon kontrolünden çıkarılmıştır.
->>>>>>> 19e2c7e (README, mimari diyagram ve proje dokumantasyonu eklendi)
+Bu yapıda FreeRADIUS en son ayağa kalkar çünkü hem API'nin hem veritabanının hazır olmasını bekler. Environment variable'lar `.env` dosyasında tutulur ve bu dosya `.gitignore` ile versiyon kontrolünden çıkarılmıştır. Hassas bilgilerin paylaşılmaması için `.env.example` dosyası şablon olarak oluşturulmuştur.
 
 ### 3.2 Veritabanı Şeması
 
@@ -256,6 +245,80 @@ Docker Compose ile çoklu servis yönetimi konusunda healthcheck ve depends_on m
 Redis'in hem rate-limiting hem oturum caching için kullanılması, "doğru araç doğru iş için" prensibini somutlaştırdı: sık sorgulanan veriler (aktif oturumlar) için Redis'in bellek içi hızı, kalıcı kayıtlar (accounting) için PostgreSQL'in ACID garantileri tercih edildi.
 
 Güvenlik açısından bcrypt kullanımı, plaintext şifre riskinin farkındalığını sağladı. Rate-limiting mekanizması ise basit ama etkili bir brute-force koruması sunuyor; gerçek dünyada bu mekanizma IP bazlı limitler ve CAPTCHA ile güçlendirilebilir.
+
+<div style="page-break-after: always;"></div>
+
+Videoyu çekerken VS Code'da bu dosyayı sağ tarafa alıp, sol taraftan kodları açarak adım adım ilerleyebilirsin. Prosedür şöyledir:
+
+---
+
+## 🔍 Video Sunum ve Kod Rehberi
+
+## 1. 🔍 Projenin Amacı ve Mimari Akış
+İlk olarak uygulamanın genel amacından ve mimariden bahset.
+
+* **Ne Söyleyeceksin:** "Sistem bir uçtan uca NAC mimarisi. FreeRADIUS gelen istekleri alıyor ve `rlm_rest` ile Python'da yazdığım policy engine'e (FastAPI) iletiyor. Böylece tüm AAA mantığını Python tarafında yönetiyorum."
+
+> **🎥 GÖSTERİLECEK KOD (API Yönlendirmesi)**
+> **📂 Dosya:** `radius/queries.conf` 
+> **🔍 Yer:** `authenticate` ve `authorize` endpoint kısımları
+> **💬 Anlatım:** "Burada FreeRADIUS'un parametreleri JSON olarak API'ye nasıl ilettiği tanımlı."
+
+---
+
+## 2. 🛡️ Güvenlik Önlemleri ve MAB/PAP Ayrımı
+Sisteme gelen isteğin MAC cihazı mı yoksa kullanıcı mı olduğuna nasıl karar verdiğini göster.
+
+> **🎥 GÖSTERİLECEK KOD (PAP vs MAB Ayrımı)**
+> **📂 Dosya:** `radius/default_actual` 
+> **🔍 Yer:** `authorize` bloğu (300. satırlar)
+> **💬 Anlatım:** "Sorguda `User-Password` varsa PAP, şifre yok ama `Calling-Station-Id` (MAC) varsa MAB isteğidir diyerek API'ye gönderiyorum."
+
+> **🎥 GÖSTERİLECEK KOD (Bcrypt Şifreleme)**
+> **📂 Dosya:** `schema.sql` 
+> **🔍 Yer:** `users` tablosu `gen_salt('bf')` satırı
+> **💬 Anlatım:** "Güvenlik gereği veritabanında plaintext şifre asla tutmuyorum, hepsi bcrypt ile şifreleniyor."
+
+---
+
+## 3. 🚦 Brute-Force Koruması (Rate Limiting)
+Saldırılara karşı sistemi nasıl yavaşlattığını ve koruduğunu anlat.
+
+> **🎥 GÖSTERİLECEK KOD (Rate Limit İşlemi)**
+> **📂 Dosya:** `api/main.py` 
+> **🔍 Yer:** `_pap_auth()` fonksiyonu (Rate-limit Redis bloğu)
+> **💬 Anlatım:** "Kullanıcı 3 kez yanlış şifre girerse, Redis tabanlı sistem bunu sayıyor ve hesabı 30 saniyeliğine blokluyor."
+
+---
+
+## 4. 🎯 Dinamik VLAN Ataması (Authorization)
+Ağa giren kişinin statüsüne göre yetkisinin sınırlandırılması.
+
+> **🎥 GÖSTERİLECEK KOD (VLAN Mantığı)**
+> **📂 Dosya:** `api/main.py` 
+> **🔍 Yer:** `@app.post("/authorize")` fonksiyonu
+> **💬 Anlatım:** "Doğrulanan kullanıcının veya cihazın grubuna (Admin, Misafir) bakarak ona uygun VLAN numarasını `Tunnel-Private-Group-Id` yetkisi olarak döndürüyorum."
+
+---
+
+## 5. 📊 Oturum Takibi (Accounting) ve Performans
+Sistemin verileri nasıl anlık ve kalıcı tuttuğunu anlat.
+
+> **🎥 GÖSTERİLECEK KOD (Çift Katmanlı Loglama)**
+> **📂 Dosya:** `api/main.py` 
+> **🔍 Yer:** `@app.post("/accounting")` fonksiyonu
+> **💬 Anlatım:** "Start ve Stop paketleri geldiğinde kalıcı geçmiş izleme için PostgreSQL'e yazıyorum. Ancak Dashboard'da 'Aktif Oturumları' çok hızlı gösterebilmek için aynı anda Redis üzerinde de oturumu başlatıp kapatıyorum. Bu sayede aktif oturum sayısı binleri bulsa bile Dashboard sıfır gecikmeyle çalışıyor."
+
+---
+
+## 6. 🖥️ İnteraktif Dashboard (Canlı Demo)
+Son olarak kodları bırak ve tamamen tarayıcıdan (`localhost:8000/dashboard`) arayüzü göster.
+
+* **Ne Söyleyeceksin ve Yapacaksın:**
+  1. Hızlı seçeneklerden **Uretim-Hatti-PC** vb. isimlerin artık kurumsal bir liste (dropdown) olduğunu vurgula.
+  2. Bir "Bağlan" ve "Kopar" simülasyonu yap.
+  3. PAP Test kısmına gidip 3 kez bilerek yanlış şifre girerek "Rate Limit"in devreye girişini izlet.
+  4. Aktif Oturumlar sekmesindeki gerçek zamanlı çalışan Redis tablosunu göster.
 
 ---
 

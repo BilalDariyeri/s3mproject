@@ -176,6 +176,25 @@
                 <thead><tr><th>Kullanıcı</th><th>MAC</th><th>Grup</th><th>VLAN</th><th>Durum</th></tr></thead>
                 <tbody id="users-table"><tr><td colspan="5" class="empty">Yükleniyor...</td></tr></tbody>
             </table>
+            
+            <hr style="border:none;border-top:1px solid var(--border);margin:1.5rem 0 1rem">
+            <div class="card-title" style="font-size:0.75rem"><i class="fas fa-user-plus" style="color:var(--emerald)"></i>Yeni Kullanıcı Ekle</div>
+            <div style="display:flex; gap:0.5rem; align-items:flex-end">
+                <div style="flex:1">
+                    <input class="input" id="new-user" placeholder="Yeni kullanıcı adı" style="margin-bottom:0; font-size:0.75rem; padding:0.5rem;">
+                </div>
+                <div style="flex:1">
+                    <input class="input" id="new-pass" placeholder="Şifre belirle" style="margin-bottom:0; font-size:0.75rem; padding:0.5rem;">
+                </div>
+                <div style="flex:1">
+                    <select class="input" id="new-role" style="margin-bottom:0; font-size:0.75rem; padding:0.5rem;">
+                        <option value="guest">Misafir (VLAN 30)</option>
+                        <option value="employee">Personel (VLAN 20)</option>
+                        <option value="admin">Yönetici (VLAN 10)</option>
+                    </select>
+                </div>
+                <button class="btn btn-green btn-sm" onclick="addUser()" style="padding:0.5rem 1rem"><i class="fas fa-plus" style="margin-right:4px"></i>Ekle</button>
+            </div>
         </div>
         <!-- EVENT LOG -->
         <div class="card">
@@ -191,7 +210,9 @@
         <div class="card">
             <div class="card-title"><i class="fas fa-key" style="color:var(--blue)"></i>PAP / CHAP Kimlik Doğrulama Testi</div>
             <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">Kullanıcı adı ve şifre ile giriş denemesi yapın. Bcrypt hash doğrulaması ve Redis rate-limiting mekanizmasını test edin.</p>
-            <input class="input" id="pap-user" placeholder="Kullanıcı adı (ör: testuser)">
+            <select class="input" id="pap-user" style="margin-bottom:0.5rem">
+                <option value="">Kullanıcı Seçin (Yükleniyor...)</option>
+            </select>
             <input class="input" id="pap-pass" type="password" placeholder="Şifre (ör: testing123)">
             <div class="btn-group">
                 <button class="btn btn-blue" onclick="testPAP()"><i class="fas fa-paper-plane" style="margin-right:6px"></i>Doğrula</button>
@@ -221,7 +242,9 @@
         <div class="card">
             <div class="card-title"><i class="fas fa-fingerprint" style="color:var(--purple)"></i>MAC Authentication Bypass (MAB) Testi</div>
             <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">802.1X desteklemeyen cihazlar (yazıcı, IP telefon vb.) için MAC adresi tabanlı doğrulama testi.</p>
-            <input class="input" id="mab-mac" placeholder="MAC adresi (ör: AA:BB:CC:DD:EE:FF)">
+            <select class="input" id="mab-mac" style="margin-bottom:1rem">
+                <option value="">Cihaz Seçin (Yükleniyor...)</option>
+            </select>
             <div class="btn-group">
                 <button class="btn btn-blue" onclick="testMAB()"><i class="fas fa-paper-plane" style="margin-right:6px"></i>MAC Doğrula</button>
                 <button class="btn btn-rose btn-sm" onclick="testMABUnknown()"><i class="fas fa-question" style="margin-right:4px"></i>Bilinmeyen MAC Gönder</button>
@@ -260,7 +283,9 @@
         <div class="card">
             <div class="card-title"><i class="fas fa-flask" style="color:var(--rose)"></i>Rate Limit Test Aracı</div>
             <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">Bir kullanıcıya arka arkaya yanlış şifre göndererek rate-limiting mekanizmasını tetikleyin.</p>
-            <input class="input" id="rl-user" placeholder="Kullanıcı adı" value="testuser">
+            <select class="input" id="rl-user" style="margin-bottom:0.5rem">
+                <option value="testuser">Kullanıcı Seçin...</option>
+            </select>
             <button class="btn btn-rose" onclick="triggerRateLimit()"><i class="fas fa-bolt" style="margin-right:6px"></i>3× Yanlış Şifre Gönder (Rate Limit Tetikle)</button>
             <div class="result-box" id="rl-result"></div>
         </div>
@@ -273,7 +298,9 @@
         <div class="card">
             <div class="card-title"><i class="fas fa-play-circle" style="color:var(--emerald)"></i>Accounting Simülatörü</div>
             <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:1rem">Start → Interim-Update → Stop akışını simüle edin. Her paket PostgreSQL <code>radacct</code> tablosuna yazılır + Redis cache güncellenir.</p>
-            <input class="input" id="acct-user" placeholder="Kullanıcı adı" value="testuser">
+            <select class="input" id="acct-user" style="margin-bottom:0.5rem">
+                <option value="testuser">Kullanıcı Seçin...</option>
+            </select>
             <input class="input mono" id="acct-sid" placeholder="Session ID (otomatik oluşturulur)">
             <div class="btn-group">
                 <button class="btn btn-green" onclick="acctTest('Start')"><i class="fas fa-play" style="margin-right:4px"></i>Start</button>
@@ -300,7 +327,11 @@
     <div class="card" style="margin-top:0">
         <div class="card-title"><i class="fas fa-terminal" style="color:var(--purple)"></i>Hızlı Simülasyon</div>
         <div style="display:flex;gap:0.75rem;align-items:end">
-            <div style="flex:1"><label style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Kullanıcı</label><input class="input" id="sim-user" placeholder="Kullanıcı adı" style="margin-bottom:0"></div>
+            <div style="flex:1"><label style="font-size:0.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Bağlanacak Cihaz / Kullanıcı</label>
+                <select class="input" id="sim-user" style="margin-bottom:0">
+                    <option value="">Yükleniyor...</option>
+                </select>
+            </div>
             <button class="btn btn-green" onclick="simulate('connect')"><i class="fas fa-plug" style="margin-right:4px"></i>Bağlan</button>
             <button class="btn btn-rose" onclick="simulate('disconnect')"><i class="fas fa-plug-circle-xmark" style="margin-right:4px"></i>Kopar</button>
         </div>
@@ -367,13 +398,20 @@ async function loadOverview() {
         document.getElementById('s-acct').textContent = acctRes.count || 0;
         document.getElementById('s-blocked').textContent = (rlRes.rate_limits || []).filter(r => r.blocked).length;
 
-        // Users table
+        // Users table and Dropdowns
         const tbody = document.getElementById('users-table');
         tbody.innerHTML = '';
         const vlanMap = {admin:'10', employee:'20', guest:'30'};
         const badgeMap = {admin:'badge-blue', employee:'badge-green', guest:'badge-amber'};
+        
+        let userOptions = '<option value="">Kullanıcı Seçin...</option>';
+        let macOptions = '<option value="">MAC Adresi Seçin...</option>';
+        macOptions += '<option value="00:11:22:33:44:55">00:11:22:33:44:55 (Bilinmeyen Cihaz - Reject Testi)</option>';
+
         users.forEach(u => {
             const g = u.group || u.role || 'guest';
+            
+            // Satır ekle
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b>${u.username}</b></td>
@@ -383,7 +421,32 @@ async function loadOverview() {
                 <td><span class="badge ${u.is_active ? 'badge-green' : 'badge-red'}">${u.is_active ? 'Aktif' : 'Pasif'}</span></td>
             `;
             tbody.appendChild(tr);
+
+            // Dropdown seçeneklerini oluştur
+            userOptions += `<option value="${u.username}">${u.username} (${g.toUpperCase()})</option>`;
+            if(u.mac_address) {
+                macOptions += `<option value="${u.mac_address}">${u.mac_address} - ${u.username} (${g})</option>`;
+            }
         });
+
+        // Dropdownları güncelle
+        const dropUsers = ['pap-user', 'rl-user', 'acct-user', 'sim-user'];
+        dropUsers.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                const currentVal = el.value;
+                el.innerHTML = userOptions;
+                if(currentVal && userOptions.includes(`value="${currentVal}"`)) el.value = currentVal;
+            }
+        });
+
+        const dropMac = document.getElementById('mab-mac');
+        if(dropMac) {
+            const currentVal = dropMac.value;
+            dropMac.innerHTML = macOptions;
+            if(currentVal && macOptions.includes(`value="${currentVal}"`)) dropMac.value = currentVal;
+        }
+
     } catch (e) { console.error(e); }
 }
 
@@ -520,6 +583,43 @@ async function triggerRateLimit() {
     toast(`${user} bloklandı!`, 'var(--rose)');
     loadRateLimits();
     loadOverview();
+}
+
+// ═══ ADD USER ═══
+async function addUser() {
+    const user = document.getElementById('new-user').value.trim();
+    const pass = document.getElementById('new-pass').value.trim();
+    const role = document.getElementById('new-role').value;
+    
+    if(!user || !pass) {
+        toast('Kullanıcı adı ve şifre zorunlu!', 'var(--amber)');
+        return;
+    }
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch('/users', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: user, password: pass, role: role})
+        }).then(r => r.json());
+        
+        if (res.status === 'success') {
+            toast(res.message, 'var(--emerald)');
+            document.getElementById('new-user').value = '';
+            document.getElementById('new-pass').value = '';
+            addLog('ok', `Yeni kullanıcı oluşturuldu: <b>${user}</b> (${role})`);
+            loadOverview(); // Ekranı yenile
+        } else {
+            toast(res.message, 'var(--rose)');
+            addLog('fail', `Kullanıcı eklenemedi: ${res.message}`);
+        }
+    } catch(err) {
+        toast('Bağlantı hatası', 'var(--rose)');
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 // ═══ ACCOUNTING ═══
